@@ -45,12 +45,12 @@ test-notes.md
 
 # Capacitor
 .capacitor/
+
+# Android - only ignore build outputs, keep all source files
 android/build/
 android/app/build/
 android/.gradle/
-android/local.properties
 android/.idea/
 android/*.iml
-
-# Build output
-out/
+android/app/release/
+android/local.properties

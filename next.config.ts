@@ -1,13 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for Capacitor static export
   output: 'export',
+  
+  // Disable image optimization for static export
   images: {
     unoptimized: true,
   },
-  // Skip API routes during export - Android app will use direct fetch
-  // since it doesn't have mixed content restrictions
+  
+  // Add trailing slash for better routing in Capacitor
   trailingSlash: true,
+  
+  // Disable server-side features
+  reactStrictMode: true,
 };
 
 export default nextConfig;
