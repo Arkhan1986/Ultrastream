@@ -36,7 +36,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    // Detect content type from URL if not provided
+    let contentType = response.headers.get('content-type');
+    if (!contentType) {
+      if (url.includes('.m3u8') || url.includes('.m3u')) {
+        contentType = 'application/vnd.apple.mpegurl';
+      } else if (url.includes('.ts')) {
+        contentType = 'video/mp2t';
+      } else if (url.includes('.mp4')) {
+        contentType = 'video/mp4';
+      } else {
+        contentType = 'application/octet-stream';
+      }
+    }
     
     // Determine cache duration based on content type
     let cacheControl = 'public, max-age=3600'; // 1 hour default

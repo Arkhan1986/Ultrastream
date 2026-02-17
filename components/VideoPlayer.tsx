@@ -13,6 +13,7 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     if (!videoRef.current || !src) return;
@@ -20,17 +21,68 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
     const video = videoRef.current;
     setError(null);
     setLoading(true);
+    retryCountRef.current = 0;
 
-    // Use proxy for all streams
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(src)}`;
+    // Proxy wrapper function
+    const proxyUrl = (url: string) => {
+      // If URL is already proxied, return as-is
+      if (url.includes('/api/proxy')) return url;
+      return `/api/proxy?url=${encodeURIComponent(url)}`;
+    };
 
     if (Hls.isSupported()) {
       // HLS.js for browsers that don't support HLS natively
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 600,
+        maxBufferSize: 60 * 1000 * 1000,
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 2,
+        nudgeOffset: 0.1,
+        nudgeMaxRetry: 3,
+        maxFragLookUpTolerance: 0.25,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: Infinity,
+        liveDurationInfinity: false,
+        liveBackBufferLength: Infinity,
+        maxLiveSyncPlaybackRate: 1,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 3,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingTimeOut: 10000,
+        levelLoadingMaxRetry: 4,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 1000,
+        startFragPrefetch: false,
+        testBandwidth: true,
+        progressive: false,
+        lowLatencyMode: false,
+        fpsDroppedMonitoringPeriod: 5000,
+        fpsDroppedMonitoringThreshold: 0.2,
+        appendErrorMaxRetry: 3,
+        // Custom loader to proxy all requests
+        loader: class CustomLoader extends Hls.DefaultConfig.loader {
+          constructor(config: any) {
+            super(config);
+          }
+
+          load(context: any, config: any, callbacks: any) {
+            // Proxy all HLS requests (manifest and segments)
+            const originalUrl = context.url;
+            context.url = proxyUrl(originalUrl);
+            
+            console.log(`Loading through proxy: ${originalUrl}`);
+            
+            super.load(context, config, callbacks);
+          }
+        },
         xhrSetup: (xhr, url) => {
+          // Don't send credentials for CORS requests
           xhr.withCredentials = false;
         },
       });
@@ -41,8 +93,8 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         console.log('Video element attached');
       });
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('Manifest loaded, starting playback');
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log('Manifest loaded, found', data.levels.length, 'quality levels');
         setLoading(false);
         video.play().catch(err => {
           console.error('Autoplay failed:', err);
@@ -50,28 +102,59 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         });
       });
 
+      hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        console.log('Fragment loaded:', data.frag.relurl);
+        retryCountRef.current = 0; // Reset retry count on successful load
+      });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS error:', data);
+        console.error('HLS error:', data.type, data.details, data);
+        
         if (data.fatal) {
           setLoading(false);
+          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('Network error encountered, trying to recover...');
               setError('Network error - trying to recover');
-              hls.startLoad();
+              
+              if (retryCountRef.current < 5) {
+                retryCountRef.current++;
+                console.log(`Retry attempt ${retryCountRef.current}/5`);
+                
+                setTimeout(() => {
+                  if (hlsRef.current) {
+                    hlsRef.current.startLoad();
+                  }
+                }, 1000 * retryCountRef.current);
+              } else {
+                setError('Network error - max retries exceeded');
+              }
               break;
+              
             case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('Media error encountered, trying to recover...');
               setError('Media error - trying to recover');
               hls.recoverMediaError();
               break;
+              
             default:
+              console.error('Fatal error, cannot recover');
               setError('Fatal error - cannot play stream');
               hls.destroy();
               break;
           }
+        } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          // Non-fatal network error
+          console.warn('Non-fatal network error:', data.details);
+          if (data.details === 'fragLoadError' || data.details === 'manifestLoadError') {
+            setError('Loading issue - retrying...');
+          }
         }
       });
 
-      hls.loadSource(proxyUrl);
+      // Load the source through proxy
+      hls.loadSource(proxyUrl(src));
       hls.attachMedia(video);
 
       return () => {
@@ -82,7 +165,7 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS support (Safari)
-      video.src = proxyUrl;
+      video.src = proxyUrl(src);
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
         video.play().catch(err => {
