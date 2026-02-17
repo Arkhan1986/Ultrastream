@@ -28,8 +28,37 @@ export default function PlayerPage() {
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/proxy?url=${encodeURIComponent(playlistUrl)}`);
-      const text = await response.text();
+      let text = '';
+      
+      // Try direct fetch first (if CORS is allowed)
+      try {
+        console.log('Attempting direct fetch...');
+        const directResponse = await fetch(playlistUrl, {
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/vnd.apple.mpegurl, application/x-mpegurl, text/plain, */*',
+          },
+        });
+        
+        if (directResponse.ok) {
+          text = await directResponse.text();
+          console.log('Direct fetch successful!');
+        } else {
+          throw new Error('Direct fetch failed');
+        }
+      } catch (directError) {
+        // Fallback to proxy if direct fetch fails
+        console.log('Direct fetch failed, using proxy...', directError);
+        const proxyResponse = await fetch(`/api/proxy?url=${encodeURIComponent(playlistUrl)}`);
+        
+        if (!proxyResponse.ok) {
+          throw new Error(`Proxy fetch failed: ${proxyResponse.statusText}`);
+        }
+        
+        text = await proxyResponse.text();
+        console.log('Proxy fetch successful!');
+      }
+      
       const parsedChannels = parseM3U(text);
       const grouped = groupChannels(parsedChannels);
       setChannels(grouped);

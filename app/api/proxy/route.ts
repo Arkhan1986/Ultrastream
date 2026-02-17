@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge'; // Use Edge runtime for better streaming support
+export const maxDuration = 60; // Allow up to 60 seconds for large playlists
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
   
@@ -8,7 +11,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Enhanced headers to mimic a real browser and handle various IPTV servers
+    // Enhanced headers to mimic a real browser
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -23,8 +26,6 @@ export async function GET(request: NextRequest) {
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'cross-site',
       },
-      // Add signal for timeout handling
-      signal: AbortSignal.timeout(30000), // 30 second timeout
     });
 
     if (!response.ok) {
@@ -36,9 +37,17 @@ export async function GET(request: NextRequest) {
     }
 
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
-    const data = await response.arrayBuffer();
+    
+    // Determine cache duration based on content type
+    let cacheControl = 'public, max-age=3600'; // 1 hour default
+    if (contentType.includes('mpegurl') || contentType.includes('m3u')) {
+      cacheControl = 'public, max-age=1800'; // 30 minutes for playlists
+    } else if (contentType.includes('video') || contentType.includes('stream')) {
+      cacheControl = 'public, max-age=300'; // 5 minutes for video segments
+    }
 
-    return new NextResponse(data, {
+    // Stream the response directly instead of buffering
+    return new NextResponse(response.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
@@ -46,8 +55,12 @@ export async function GET(request: NextRequest) {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Range',
         'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
-        'Cache-Control': 'public, max-age=3600',
-        'X-Proxy-Status': 'success',
+        'Cache-Control': cacheControl,
+        'X-Proxy-Status': 'streaming',
+        // Pass through content length if available
+        ...(response.headers.get('content-length') && {
+          'Content-Length': response.headers.get('content-length')!,
+        }),
       },
     });
   } catch (error: any) {
