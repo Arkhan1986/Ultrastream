@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraStream - Build Your Android APK</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .step {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .step:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-right: 15px;
+        }
+
+        .step h2 {
+            display: inline-block;
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .step-content {
+            margin-top: 15px;
+            padding-left: 55px;
+        }
+
+        .step-content p {
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #68d391;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block code {
+            display: block;
+            white-space: pre;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        .download-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .info-box {
+            background: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .info-box strong {
+            color: #1890ff;
+        }
+
+        .success-box {
+            background: #f6ffed;
+            border-left: 4px solid #52c41a;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .success-box strong {
+            color: #52c41a;
+        }
+
+        .warning-box {
+            background: #fff7e6;
+            border-left: 4px solid #fa8c16;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .warning-box strong {
+            color: #fa8c16;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #52c41a;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .step-content {
+                padding-left: 0;
+            }
+
+            .step-number {
+                display: block;
+                margin-bottom: 10px;
+            }
+
+            .step h2 {
+                display: block;
+            }
+        }
+
+        .screenshot {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 UltraStream Android</h1>
+            <p>Build Your APK in 3 Simple Steps</p>
+        </div>
+
+        <div class="content">
+            <div class="success-box">
+                <strong>✅ Your Android project is ready!</strong> Follow these steps to build your APK and enjoy IPTV streaming on your phone.
+            </div>
+
+            <!-- Step 1 -->
+            <div class="step" data-step="1">
+                <span class="step-number">1</span>
+                <h2>Download Android Studio</h2>
+                <div class="step-content">
+                    <p>Android Studio is the official IDE for Android development. You'll need it to build your APK.</p>
+                    
+                    <a href="https://developer.android.com/studio" target="_blank" class="download-link">
+                        📥 Download Android Studio
+                    </a>
+
+                    <div class="info-box">
+                        <strong>💡 First time?</strong> The download is about 1GB. Installation takes 5-10 minutes. Make sure you have at least 8GB of free disk space.
+                    </div>
+
+                    <p><strong>Installation steps:</strong></p>
+                    <ul class="feature-list">
+                        <li>Download the installer for your OS (Windows, Mac, or Linux)</li>
+                        <li>Run the installer and follow the setup wizard</li>
+                        <li>Install all recommended components</li>
+                        <li>Launch Android Studio when installation completes</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step" data-step="2">
+                <span class="step-number">2</span>
+                <h2>Clone and Open Project</h2>
+                <div class="step-content">
+                    <p><strong>Option A: Using Git (Recommended)</strong></p>
+                    <p>Open your terminal or command prompt and run:</p>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <code>git clone https://github.com/Arkhan1986/Ultrastream.git</code>
+                    </div>
+
+                    <p><strong>Option B: Download ZIP</strong></p>
+                    <a href="https://github.com/Arkhan1986/Ultrastream/archive/refs/heads/main.zip" target="_blank" class="download-link">
+                        📦 Download ZIP
+                    </a>
+                    <p style="margin-top: 10px;">Extract the ZIP file to a folder on your computer.</p>
+
+                    <div class="warning-box">
+                        <strong>⚠️ Important:</strong> Make sure you extract to a path without spaces or special characters (e.g., <code>C:\Projects\Ultrastream</code>)
+                    </div>
+
+                    <p><strong>Open in Android Studio:</strong></p>
+                    <ul class="feature-list">
+                        <li>Launch Android Studio</li>
+                        <li>Click "Open" or "File → Open"</li>
+                        <li>Navigate to the <code>Ultrastream/android</code> folder</li>
+                        <li>Click "OK" to open the project</li>
+                        <li>Wait for Gradle sync (5-10 minutes first time)</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>💡 Gradle Sync:</strong> This downloads all dependencies. You'll see a progress bar at the bottom. Wait until it says "Gradle sync finished" before proceeding.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step" data-step="3">
+                <span class="step-number">3</span>
+                <h2>Build Your APK</h2>
+                <div class="step-content">
+                    <p>Once Gradle sync is complete, you're ready to build!</p>
+
+                    <p><strong>Build steps:</strong></p>
+                    <ul class="feature-list">
+                        <li>Click "Build" in the top menu</li>
+                        <li>Select "Build Bundle(s) / APK(s)"</li>
+                        <li>Click "Build APK(s)"</li>
+                        <li>Wait 2-3 minutes for the build to complete</li>
+                        <li>Click "locate" in the notification that appears</li>
+                    </ul>
+
+                    <div class="success-box">
+                        <strong>🎉 APK Location:</strong><br>
+                        <code>android/app/build/outputs/apk/debug/app-debug.apk</code>
+                    </div>
+
+                    <p><strong>Install on your phone:</strong></p>
+                    <ul class="feature-list">
+                        <li>Copy <code>app-debug.apk</code> to your Android device</li>
+                        <li>Open the APK file on your phone</li>
+                        <li>Allow "Install from unknown sources" if prompted</li>
+                        <li>Tap "Install"</li>
+                        <li>Launch UltraStream!</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Using the App -->
+            <div class="step">
+                <span class="step-number">🎬</span>
+                <h2>Using Your App</h2>
+                <div class="step-content">
+                    <p>Once installed, here's how to start streaming:</p>
+
+                    <ul class="feature-list">
+                        <li>Launch UltraStream on your phone</li>
+                        <li>Go to the player page</li>
+                        <li>Enter an M3U playlist URL</li>
+                        <li>Click "Load Playlist"</li>
+                        <li>Browse channels and start watching!</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>📺 Try this playlist:</strong><br>
+                        <code>https://iptv-org.github.io/iptv/index.m3u</code><br>
+                        <small>Contains 4,800+ free IPTV channels from around the world</small>
+                    </div>
+
+                    <div class="success-box">
+                        <strong>✅ HTTP Streams Work!</strong> Unlike the web version, the Android app can play HTTP streams without any errors thanks to <code>usesCleartextTraffic="true"</code> in the manifest.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="step">
+                <span class="step-number">⭐</span>
+                <h2>What You Get</h2>
+                <div class="step-content">
+                    <ul class="feature-list">
+                        <li><strong>HTTP Stream Support</strong> - No mixed content errors</li>
+                        <li><strong>Direct Playback</strong> - No proxy needed (faster)</li>
+                        <li><strong>M3U/M3U8 Parser</strong> - Load any IPTV playlist</li>
+                        <li><strong>Channel Browser</strong> - Search and filter channels</li>
+                        <li><strong>HLS Video Player</strong> - Smooth streaming with hls.js</li>
+                        <li><strong>Dark Mode UI</strong> - Netflix-style interface</li>
+                        <li><strong>Hardware Acceleration</strong> - Optimized performance</li>
+                        <li><strong>Offline UI</strong> - App works without internet (for navigation)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="step">
+                <span class="step-number">🔧</span>
+                <h2>Troubleshooting</h2>
+                <div class="step-content">
+                    <p><strong>Gradle Sync Failed?</strong></p>
+                    <ul class="feature-list">
+                        <li>Go to Tools → SDK Manager</li>
+                        <li>Install "Android SDK Platform 34"</li>
+                        <li>Install "Android SDK Build-Tools 34.0.0"</li>
+                        <li>Click "File → Sync Project with Gradle Files"</li>
+                    </ul>
+
+                    <p><strong>Build Failed?</strong></p>
+                    <ul class="feature-list">
+                        <li>Click "Build → Clean Project"</li>
+                        <li>Wait for it to finish</li>
+                        <li>Click "Build → Rebuild Project"</li>
+                    </ul>
+
+                    <p><strong>Can't install APK on phone?</strong></p>
+                    <ul class="feature-list">
+                        <li>Go to Settings → Security</li>
+                        <li>Enable "Unknown sources" or "Install unknown apps"</li>
+                        <li>Try installing again</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Next Steps -->
+            <div class="step">
+                <span class="step-number">🚀</span>
+                <h2>Next Steps</h2>
+                <div class="step-content">
+                    <p><strong>Customize Your App:</strong></p>
+                    <ul class="feature-list">
+                        <li>Change app name in <code>android/app/src/main/res/values/strings.xml</code></li>
+                        <li>Replace app icon in <code>android/app/src/main/res/mipmap-*/</code></li>
+                        <li>Modify colors and theme in your Next.js components</li>
+                    </ul>
+
+                    <p><strong>Publish to Google Play:</strong></p>
+                    <ul class="feature-list">
+                        <li>Build → Generate Signed Bundle/APK</li>
+                        <li>Create a keystore (one-time setup)</li>
+                        <li>Build release APK or AAB</li>
+                        <li>Upload to Google Play Console</li>
+                        <li>Complete app listing and submit for review</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>💰 Publishing Cost:</strong> Google Play requires a one-time $25 developer registration fee.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>UltraStream</strong> - Professional IPTV Streaming App</p>
+            <p>
+                <a href="https://github.com/Arkhan1986/Ultrastream" target="_blank">📂 GitHub Repository</a> •
+                <a href="BUILD_APK.md" target="_blank">📄 Text Guide</a> •
+                <a href="ANDROID_BUILD.md" target="_blank">📖 Full Documentation</a>
+            </p>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #999;">
+                Built with Next.js, Capacitor, and HLS.js
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling;
+            const code = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Animate steps on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '0';
+                    entry.target.style.transform = 'translateY(20px)';
+                    
+                    setTimeout(() => {
+                        entry.target.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, 100);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.step').forEach(step => {
+            observer.observe(step);
+        });
+    </script>
+</body>
+</html>
