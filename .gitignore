@@ -42,3 +42,15 @@ next-env.d.ts
 
 # test notes
 test-notes.md
+
+# Capacitor
+.capacitor/
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+android/*.iml
+
+# Build output
+out/

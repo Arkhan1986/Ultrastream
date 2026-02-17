@@ -23,11 +23,15 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
     setLoading(true);
     retryCountRef.current = 0;
 
-    // Android native app - no proxy needed, direct fetch works!
-    const streamUrl = src;
+    // Proxy wrapper function
+    const proxyUrl = (url: string) => {
+      // If URL is already proxied, return as-is
+      if (url.includes('/api/proxy')) return url;
+      return `/api/proxy?url=${encodeURIComponent(url)}`;
+    };
 
     if (Hls.isSupported()) {
-      // HLS.js for Android WebView
+      // HLS.js for browsers that don't support HLS natively
       const hls = new Hls({
         enableWorker: true,
         backBufferLength: 90,
@@ -60,10 +64,24 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         fpsDroppedMonitoringPeriod: 5000,
         fpsDroppedMonitoringThreshold: 0.2,
         appendErrorMaxRetry: 3,
+        // Custom loader to proxy all requests
+        loader: class CustomLoader extends Hls.DefaultConfig.loader {
+          constructor(config: any) {
+            super(config);
+          }
+
+          load(context: any, config: any, callbacks: any) {
+            // Proxy all HLS requests (manifest and segments)
+            const originalUrl = context.url;
+            context.url = proxyUrl(originalUrl);
+            
+            console.log(`Loading through proxy: ${originalUrl}`);
+            
+            super.load(context, config, callbacks);
+          }
+        },
         xhrSetup: (xhr, url) => {
-          // Set browser-like headers for IPTV servers
-          xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36');
-          xhr.setRequestHeader('Accept', '*/*');
+          // Don't send credentials for CORS requests
           xhr.withCredentials = false;
         },
       });
@@ -134,8 +152,8 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         }
       });
 
-      // Load source directly (no proxy needed in Android)
-      hls.loadSource(streamUrl);
+      // Load the source through proxy
+      hls.loadSource(proxyUrl(src));
       hls.attachMedia(video);
 
       return () => {
@@ -145,8 +163,8 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         }
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support
-      video.src = streamUrl;
+      // Native HLS support (Safari)
+      video.src = proxyUrl(src);
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
         video.play().catch(err => {
