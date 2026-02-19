@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 
@@ -13,7 +11,7 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const retryCountRef = useRef(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (!videoRef.current || !src) return;
@@ -21,177 +19,135 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
     const video = videoRef.current;
     setError(null);
     setLoading(true);
-    retryCountRef.current = 0;
-
-    // Android native app - no proxy needed, direct fetch works!
-    const streamUrl = src;
 
     if (Hls.isSupported()) {
-      // HLS.js for Android WebView
       const hls = new Hls({
         enableWorker: true,
+        lowLatencyMode: true,
         backBufferLength: 90,
         maxBufferLength: 30,
         maxMaxBufferLength: 600,
         maxBufferSize: 60 * 1000 * 1000,
-        maxBufferHole: 0.5,
-        highBufferWatchdogPeriod: 2,
-        nudgeOffset: 0.1,
-        nudgeMaxRetry: 3,
-        maxFragLookUpTolerance: 0.25,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: Infinity,
-        liveDurationInfinity: false,
-        liveBackBufferLength: Infinity,
-        maxLiveSyncPlaybackRate: 1,
-        manifestLoadingTimeOut: 10000,
-        manifestLoadingMaxRetry: 3,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingTimeOut: 10000,
-        levelLoadingMaxRetry: 4,
-        levelLoadingRetryDelay: 1000,
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 5,
+        levelLoadingTimeOut: 20000,
+        levelLoadingMaxRetry: 5,
         fragLoadingTimeOut: 20000,
-        fragLoadingMaxRetry: 6,
-        fragLoadingRetryDelay: 1000,
-        startFragPrefetch: false,
-        testBandwidth: true,
-        progressive: false,
-        lowLatencyMode: false,
-        fpsDroppedMonitoringPeriod: 5000,
-        fpsDroppedMonitoringThreshold: 0.2,
-        appendErrorMaxRetry: 3,
-        xhrSetup: (xhr, url) => {
-          // Set browser-like headers for IPTV servers
-          xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36');
-          xhr.setRequestHeader('Accept', '*/*');
+        fragLoadingMaxRetry: 5,
+        xhrSetup: (xhr) => {
           xhr.withCredentials = false;
-        },
+        }
       });
 
+      hls.loadSource(src);
+      hls.attachMedia(video);
       hlsRef.current = hls;
 
-      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-        console.log('Video element attached');
-      });
-
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log('Manifest loaded, found', data.levels.length, 'quality levels');
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
-        video.play().catch(err => {
-          console.error('Autoplay failed:', err);
-          setError('Click play to start');
+        video.play().catch(() => {
+          // Auto-play might be blocked
         });
-      });
-
-      hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
-        console.log('Fragment loaded:', data.frag.relurl);
-        retryCountRef.current = 0; // Reset retry count on successful load
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS error:', data.type, data.details, data);
-        
         if (data.fatal) {
-          setLoading(false);
-          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error('Network error encountered, trying to recover...');
-              setError('Network error - trying to recover');
-              
-              if (retryCountRef.current < 5) {
-                retryCountRef.current++;
-                console.log(`Retry attempt ${retryCountRef.current}/5`);
-                
-                setTimeout(() => {
-                  if (hlsRef.current) {
-                    hlsRef.current.startLoad();
-                  }
-                }, 1000 * retryCountRef.current);
-              } else {
-                setError('Network error - max retries exceeded');
-              }
+              hls.startLoad();
               break;
-              
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error('Media error encountered, trying to recover...');
-              setError('Media error - trying to recover');
               hls.recoverMediaError();
               break;
-              
             default:
-              console.error('Fatal error, cannot recover');
-              setError('Fatal error - cannot play stream');
+              setError(`Błąd odtwarzania: ${data.details}`);
               hls.destroy();
               break;
           }
-        } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          // Non-fatal network error
-          console.warn('Non-fatal network error:', data.details);
-          if (data.details === 'fragLoadError' || data.details === 'manifestLoadError') {
-            setError('Loading issue - retrying...');
-          }
         }
       });
-
-      // Load source directly (no proxy needed in Android)
-      hls.loadSource(streamUrl);
-      hls.attachMedia(video);
-
-      return () => {
-        if (hlsRef.current) {
-          hlsRef.current.destroy();
-          hlsRef.current = null;
-        }
-      };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support
-      video.src = streamUrl;
+      video.src = src;
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
-        video.play().catch(err => {
-          console.error('Autoplay failed:', err);
-          setError('Click play to start');
-        });
+        video.play().catch(() => {});
       });
       video.addEventListener('error', () => {
-        setLoading(false);
-        setError('Failed to load video');
+        setError('Błąd odtwarzania strumienia');
       });
-    } else {
-      setLoading(false);
-      setError('HLS is not supported in this browser');
     }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+    };
   }, [src]);
 
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
   return (
-    <div className="relative w-full bg-black rounded-lg overflow-hidden shadow-2xl">
-      {title && (
-        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
-          <h2 className="text-white text-xl font-semibold">{title}</h2>
-        </div>
-      )}
-      
+    <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl group">
       <video
         ref={videoRef}
-        className="w-full aspect-video"
-        controls
+        className="w-full h-full object-contain"
         playsInline
-        autoPlay
-        muted
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
       />
-
+      
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="text-white text-lg">Loading stream...</div>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       )}
 
       {error && (
-        <div className="absolute bottom-16 left-0 right-0 mx-4 p-3 bg-red-600/90 text-white rounded-lg text-center">
-          {error}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center">
+          <div className="max-w-md">
+            <p className="text-red-400 text-lg font-semibold mb-2">Ups! Coś poszło nie tak</p>
+            <p className="text-gray-300 text-sm">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
+            >
+              Spróbuj ponownie
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Custom Controls Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={togglePlay} className="text-white hover:text-purple-400 transition-colors">
+              {isPlaying ? (
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              ) : (
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              )}
+            </button>
+            <span className="text-white font-medium truncate max-w-[200px]">{title || 'Strumień na żywo'}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-red-500 text-xs font-bold uppercase tracking-wider">Live</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
